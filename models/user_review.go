@@ -1,7 +1,7 @@
 package models
 
 // UserReview represents a user review for an app.
-type UserReview struct {
+type Review struct {
 	AppName               string  `json:"app_name"`
 	TranslatedReview      string  `json:"translated_review"`
 	Sentiment             string  `json:"sentiment"`
