@@ -1,15 +1,21 @@
 package routes
 
 import (
-	handlers "git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/handler"
+	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/handlers"
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
-// SetupRoutes sets up the API endpoints
-func SetupRoutes(app *fiber.App) {
+// RegisterRoutes sets up API routes
+func RegisterRoutes(app *fiber.App, logger *zap.Logger) {
 	api := app.Group("/api")
-	v1 := api.Group("/v1")
 
-	// Route to get all apps
-	v1.Get("/apps", handlers.GetAllApps)
+	// Middleware to inject logger into the request context
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("logger", logger)
+		return c.Next()
+	})
+
+	// Register the GetApps route
+	api.Get("/apps", handlers.GetAppsHandler)
 }

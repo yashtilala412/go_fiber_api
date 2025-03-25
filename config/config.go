@@ -1,9 +1,22 @@
 package config
 
 import (
-	"time"
+	"log"
+
+	"github.com/spf13/viper"
 )
 
-var (
-	CacheExpiration = 7 * 24 * time.Hour
-)
+// LoadConfig initializes Viper
+func LoadConfig() {
+	viper.SetConfigFile(".env") // ✅ Reads from .env
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+}
+
+// Get returns a config value as a string
+func Get(key string) string {
+	return viper.GetString(key)
+}

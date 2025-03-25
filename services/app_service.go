@@ -1,86 +1,49 @@
-package service
+package services
 
 import (
-	"encoding/csv"
 	"errors"
-	"log"
-	"os"
-	"strings"
+	"sync"
 
-	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/cache"
+	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/utils"
+	"go.uber.org/zap"
 )
 
-// App struct represents an app entry
-type App struct {
-	Name  string
-	Price string
-}
+var (
+	appData    [][]string
+	reviewData [][]string
+	once       sync.Once
+	loadErr    error
+)
 
-// FetchAllApps reads from the cache or CSV file and returns filtered apps
-func FetchAllApps(limit, page int, price string) ([]string, error) {
-	// Check if data is already cached
-	cachedData, found := cache.Get("apps")
-	if found {
-		log.Println("Serving from cache")
-		return applyPagination(cachedData.([]string), limit, page), nil
-	}
+// LoadAppData loads CSV data once and caches it
+func LoadAppData(logger *zap.Logger) ([][]string, [][]string, error) {
+	once.Do(func() {
+		logger.Info("Loading CSV data...")
 
-	// Open CSV file
-	file, err := os.Open("storage/googleplaystore.csv")
-	if err != nil {
-		log.Println("Error opening CSV file:", err)
-		return nil, errors.New("failed to open CSV file")
-	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	var apps []string
-	lineNumber := 0
-
-	for {
-		record, err := reader.Read()
+		data, err := utils.LoadCSV(logger) // Ensure LoadCSV uses the logger
 		if err != nil {
-			// Stop reading on EOF
-			if err.Error() == "EOF" {
-				break
-			}
-			log.Printf("Skipping invalid row at line %d: %v\n", lineNumber, err)
-			continue
+			logger.Error("Failed to load CSV data", zap.Error(err))
+			loadErr = err
+			return
 		}
 
-		lineNumber++
-		if lineNumber == 1 {
-			continue // Skip the header row
+		if len(data) > 0 {
+			appData = data[:len(data)/2]    // First half as appData
+			reviewData = data[len(data)/2:] // Second half as reviewData
+		} else {
+			loadErr = errors.New("CSV data is empty")
 		}
 
-		// Ensure the record has enough columns before accessing index 7
-		if len(record) < 8 {
-			log.Printf("Skipping row %d: expected at least 8 columns, got %d\n", lineNumber, len(record))
-			continue
-		}
+		logger.Info("CSV data successfully loaded",
+			zap.Int("appRows", len(appData)),
+			zap.Int("reviewRows", len(reviewData)),
+		)
+	})
 
-		// Filter apps by price if specified
-		if price == "" || strings.TrimSpace(record[7]) == price {
-			apps = append(apps, record[0]) // App name is in the first column
-		}
-	}
-
-	// Store in cache
-	cache.Set("apps", apps)
-
-	// Return paginated data
-	return applyPagination(apps, limit, page), nil
+	return appData, reviewData, loadErr
 }
 
-// applyPagination applies pagination logic
-func applyPagination(data []string, limit, page int) []string {
-	start := (page - 1) * limit
-	if start >= len(data) {
-		return []string{}
-	}
-	end := start + limit
-	if end > len(data) {
-		end = len(data)
-	}
-	return data[start:end]
+// GetApps retrieves cached app data
+func GetApps() [][]string {
+	return appData
 }
