@@ -1,22 +1,23 @@
 package main
 
 import (
-	"log"
+	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/cli"
+	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/config"
 
-	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/routes"
-	"github.com/gofiber/fiber/v2"
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 func main() {
-	app := fiber.New()
+	config.LoadConfig()
 
-	// Setup routes
-	routes.SetupRoutes(app)
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
 
-	// Start the server
-	port := ":3000"
-	log.Println("Server is running on http://localhost" + port)
-	if err := app.Listen(port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	mode := viper.GetString("MODE")
+	if mode == "api" {
+		cli.StartAPI(logger)
+	} else {
+		cli.StartCLI()
 	}
 }
