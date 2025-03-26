@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"log"
 
-	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/routes"
+	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/config"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/services"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -27,22 +25,22 @@ var apiCmd = &cobra.Command{
 		logger, _ := zap.NewProduction()
 		defer logger.Sync()
 
+		// Load configuration
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			log.Fatal("Failed to load config", zap.Error(err))
+		}
+
 		// Load CSV data before starting the API
-		appData, reviewData, err := services.LoadAppData(logger)
+		appData, reviewData, err := services.LoadAppData(logger, cfg)
 		if err != nil {
 			logger.Error("Failed to load CSV data", zap.Error(err))
 		} else {
 			logger.Info("CSV data loaded successfully", zap.Int("appRows", len(appData)), zap.Int("reviewRows", len(reviewData)))
 		}
 
-		app := fiber.New()
-
-		// Register API routes
-		routes.RegisterRoutes(app, logger)
-
-		port := viper.GetString("PORT")
-		log.Println("Starting API on port", port)
-		log.Fatal(app.Listen(":" + port))
+		// Start API
+		StartAPI(logger)
 	},
 }
 
@@ -54,7 +52,13 @@ var loadCmd = &cobra.Command{
 		logger, _ := zap.NewProduction()
 		defer logger.Sync()
 
-		appData, reviewData, err := services.LoadAppData(logger)
+		// Load configuration
+		cfg, err := config.LoadConfig()
+		if err != nil {
+			logger.Fatal("Failed to load config", zap.Error(err))
+		}
+
+		appData, reviewData, err := services.LoadAppData(logger, cfg)
 		if err != nil {
 			log.Fatalf("Error loading data: %v", err)
 		}

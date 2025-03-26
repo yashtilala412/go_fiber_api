@@ -5,8 +5,6 @@ import (
 	"os"
 	"sync"
 
-	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/config"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -18,14 +16,18 @@ var (
 )
 
 // LoadCSV reads CSV data into memory once (caching) and skips faulty rows
-func LoadCSV(logger *zap.Logger) ([][]string, error) {
+func LoadCSV(logger *zap.Logger, filePath string) ([][]string, error) {
+	logger.Info("Attempting to open CSV file", zap.String("filePath", filePath)) // Debug log
+
 	cacheOnce.Do(func() {
-		config.LoadConfig()
-		filePath := viper.GetString("CSV_FILE_PATH")
+		if filePath == "" {
+			logger.Error("CSV file path is empty!")
+			return
+		}
 
 		file, err := os.Open(filePath)
 		if err != nil {
-			logger.Error("Failed to open CSV file", zap.Error(err))
+			logger.Error("Failed to open CSV file", zap.String("filePath", filePath), zap.Error(err))
 			return
 		}
 		defer file.Close()
@@ -55,6 +57,7 @@ func LoadCSV(logger *zap.Logger) ([][]string, error) {
 		cacheLock.Unlock()
 
 		logger.Info("CSV data loaded into cache",
+			zap.String("filePath", filePath),
 			zap.Int("totalRows", len(data)),
 			zap.Int("skippedRows", skippedRows))
 	})
