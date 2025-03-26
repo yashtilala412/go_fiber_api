@@ -11,14 +11,3 @@ type App struct {
 	Price       string `json:"price"`
 	ContentRate string `json:"content_rating"`
 }
-
-// var appData []App
-
-// // LoadApps stores loaded apps in memory
-// func LoadApps(data []App) {
-// 	appData = data
-// }
-// func GetAllApps() []App {
-// 	// This should be replaced with actual data retrieval logic
-// 	return []App{}
-// }
