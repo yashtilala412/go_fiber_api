@@ -5,47 +5,54 @@ import (
 	"os/signal"
 	"syscall"
 
-	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/config"
-	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/routes"
-	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/utils"
-	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
+
+	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/config"
+	pMetrics "git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/pkg/prometheus"
+	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/routes"
+	"github.com/gofiber/fiber/v2"
+	"github.com/spf13/cobra"
 )
 
-// StartAPI initializes the API
-func StartAPI(logger *zap.Logger) {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		logger.Fatal("Failed to load config", zap.Error(err))
+// GetAPICommandDef runs app
+func GetAPICommandDef(cfg config.AppConfig, logger *zap.Logger) cobra.Command {
+	apiCommand := cobra.Command{
+		Use:   "api",
+		Short: "To start api",
+		Long:  `To start api`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			// Create fiber app
+			app := fiber.New(fiber.Config{})
+
+			promMetrics := pMetrics.InitPrometheusMetrics()
+
+			// Setup routes
+			err := routes.Setup(app, logger, cfg, promMetrics)
+			if err != nil {
+				return err
+			}
+
+			interrupt := make(chan os.Signal, 1)
+			signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+			// Start server in a goroutine
+			go func() {
+				if err := app.Listen(cfg.Host + ":" + cfg.Port); err != nil {
+					logger.Panic(err.Error())
+				}
+			}()
+
+			<-interrupt
+			logger.Info("gracefully shutting down...")
+			if err := app.Shutdown(); err != nil {
+				logger.Panic("error while shutting down server", zap.Error(err))
+			}
+
+			logger.Info("server stopped receiving new requests.")
+			return nil
+		},
 	}
 
-	app := fiber.New()
-
-	// Load CSV Data
-	_, err = utils.LoadCSV(logger, cfg.CSVFilePath) // Use the correct field for CSV path
-	if err != nil {
-		logger.Fatal("Failed to load CSV data", zap.Error(err))
-	}
-
-	// Register routes
-	routes.RegisterRoutes(app, logger)
-
-	// Handle graceful shutdown
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		if err := app.Listen(":" + cfg.Port); err != nil {
-			logger.Panic("Error starting server", zap.Error(err))
-		}
-	}()
-
-	<-interrupt
-	logger.Info("Gracefully shutting down...")
-
-	if err := app.Shutdown(); err != nil {
-		logger.Panic("Error while shutting down server", zap.Error(err))
-	}
-
-	logger.Info("Server stopped accepting new requests.")
+	return apiCommand
 }
