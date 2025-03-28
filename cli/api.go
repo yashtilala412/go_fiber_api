@@ -39,7 +39,7 @@ func GetAPICommandDef(cfg config.AppConfig, logger *zap.Logger) cobra.Command {
 			// Start server in a goroutine
 			go func() {
 				if err := app.Listen(cfg.Host + ":" + cfg.Port); err != nil {
-					logger.Panic(err.Error())
+					logger.Error(err.Error())
 				}
 			}()
 

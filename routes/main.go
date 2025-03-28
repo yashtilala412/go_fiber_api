@@ -27,6 +27,7 @@ func Setup(app *fiber.App, logger *zap.Logger, config config.AppConfig, pMetrics
 
 	// API Endpoints
 	SetupAppRoutes(v1, logger, config)
+	SetupReviewRoutes(v1, logger, config)
 
 	return nil
 }
@@ -34,11 +35,19 @@ func Setup(app *fiber.App, logger *zap.Logger, config config.AppConfig, pMetrics
 // SetupAppRoutes defines the routes for app management
 func SetupAppRoutes(v1 fiber.Router, logger *zap.Logger, config config.AppConfig) {
 	appController := controller.NewAppController(logger, config)
-	reviewController := controller.NewReviewController(logger, config)
 
 	appGroup := v1.Group("/apps")
 	appGroup.Get("/", appController.ListApps) // Fetch apps with limit, page, and price filter
+	appGroup.Post("/", appController.AddApp)  // Add a new app
+	appGroup.Delete("/:appname", appController.DeleteApp)
+
+}
+
+func SetupReviewRoutes(v1 fiber.Router, logger *zap.Logger, config config.AppConfig) {
+	reviewController := controller.NewReviewController(logger, config)
 
 	reviewGroup := v1.Group("/review")
-	reviewGroup.Get("/", reviewController.GetReviews) // Fetch reviews with filters
+	reviewGroup.Get("/", reviewController.ListReviews) // Fetch reviews with filters
+	reviewGroup.Post("/", reviewController.AddReview)  // Add a new review
+	reviewGroup.Delete("/deletereview/:appname", reviewController.DeleteReviewByAppName)
 }
