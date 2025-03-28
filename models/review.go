@@ -5,11 +5,13 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/config"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/utils"
+	"github.com/gofiber/fiber/v2"
 	"github.com/jszwec/csvutil"
 	"go.uber.org/zap"
 )
@@ -56,8 +58,8 @@ func (rm *ReviewModel) loadCache() error {
 	return nil
 }
 
-// GetReviewsFromCache: Returns data from cache or loads it if expired
-func (rm *ReviewModel) GetReviewsFromCache() ([]Review, error) {
+// ListReviewsFromCache: Returns data from cache or loads it if expired
+func (rm *ReviewModel) ListReviewsFromCache() ([]Review, error) {
 	// First-time cache load
 	reviewOnce.Do(func() {
 		_ = rm.loadCache()
@@ -71,8 +73,8 @@ func (rm *ReviewModel) GetReviewsFromCache() ([]Review, error) {
 			return nil, err
 		}
 		reviewMutex.RLock()
+		defer reviewMutex.RUnlock()
 	}
-	defer reviewMutex.RUnlock()
 
 	return reviewCache, nil
 }
@@ -124,9 +126,9 @@ func isNaN(f float64) bool {
 	return f != f
 }
 
-// GetReviews: Fetches reviews based on filters
-func (rm *ReviewModel) GetReviews(appName, sentiment string, polarityMin, polarityMax float64) ([]Review, error) {
-	reviews, err := rm.GetReviewsFromCache()
+// ListReviews: Fetches reviews based on filters
+func (rm *ReviewModel) ListReviews(c *fiber.Ctx, appName, sentiment string, polarityMin, polarityMax float64) ([]Review, error) {
+	reviews, err := rm.ListReviewsFromCache()
 	if err != nil {
 		return nil, err
 	}
@@ -176,6 +178,7 @@ func (rm *ReviewModel) GetReviews(appName, sentiment string, polarityMin, polari
 	)
 
 	if len(filteredReviews) == 0 {
+		utils.JSONSuccess(c, fiber.StatusNotFound, nil)
 		return nil, errors.New(fmt.Sprintf(
 			"No reviews found matching: App=%s, Sentiment=%s, Polarity=%f-%f",
 			appName, sentiment, polarityMin, polarityMax,
@@ -183,4 +186,94 @@ func (rm *ReviewModel) GetReviews(appName, sentiment string, polarityMin, polari
 	}
 
 	return filteredReviews, nil
+}
+
+// AddReview adds a new review to the CSV and updates the cache.
+func (rm *ReviewModel) AddReview(review Review) error {
+	reviewMutex.Lock()
+	defer reviewMutex.Unlock()
+
+	file, err := os.OpenFile(rm.config.ReviewFilePath, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	record := []string{
+		review.App,
+		review.TranslatedReview,
+		review.Sentiment,
+		fmt.Sprintf("%f", review.SentimentPolarity),
+		fmt.Sprintf("%f", review.SentimentSubjectivity),
+	}
+
+	if err := writer.Write(record); err != nil {
+		return err
+	}
+
+	// Append to the in-memory cache
+	reviewCache = append(reviewCache, review)
+
+	return nil
+}
+
+// DeleteReviewByAppName deletes all reviews for a given app name.
+func (rm *ReviewModel) DeleteReviewByAppName(appName string) error {
+	reviewMutex.Lock()
+	defer reviewMutex.Unlock()
+
+	// 1. Read all reviews from CSV
+	reviews, err := rm.ParseReviews()
+	if err != nil {
+		return err
+	}
+
+	// 2. Filter out reviews to be deleted
+	var updatedReviews []Review
+	found := false
+	for _, review := range reviews {
+		if !strings.EqualFold(strings.TrimSpace(review.App), strings.TrimSpace(appName)) {
+			updatedReviews = append(updatedReviews, review)
+		} else {
+			found = true
+		}
+	}
+
+	if !found {
+		return errors.New("No reviews found for app: " + appName)
+	}
+
+	// 3. Write the updated review list back to CSV using csvutil.Marshal
+	file, err := os.Create(rm.config.ReviewFilePath) // Create overwrites the file
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	csvBytes, err := csvutil.Marshal(updatedReviews)
+	if err != nil {
+		return err
+	}
+
+	r := csv.NewReader(bytes.NewReader(csvBytes))
+	records, err := r.ReadAll()
+	if err != nil {
+		return err
+	}
+
+	err = writer.WriteAll(records)
+	if err != nil {
+		return err
+	}
+
+	// 4. Update the in-memory cache
+	reviewCache = updatedReviews
+
+	return nil
 }

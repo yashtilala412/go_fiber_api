@@ -63,3 +63,37 @@ func (ac *AppController) ListApps(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, fiber.StatusOK, apps)
 }
+
+// AddApp handles the request to add a new app.
+func (ac *AppController) AddApp(c *fiber.Ctx) error {
+	var app models.App
+	if err := c.BodyParser(&app); err != nil {
+		ac.logger.Error("Error parsing app data", zap.Error(err))
+		return utils.JSONFail(c, fiber.StatusBadRequest, "Invalid app data")
+	}
+
+	if err := ac.appModel.AddAppData(app); err != nil {
+		ac.logger.Error("Error adding app", zap.Error(err))
+		return utils.JSONFail(c, fiber.StatusInternalServerError, "Failed to add app")
+	}
+
+	return utils.JSONSuccess(c, fiber.StatusCreated, "App added successfully")
+}
+
+// delete the apps
+func (ac *AppController) DeleteApp(c *fiber.Ctx) error {
+	appName := c.Params("appname")
+	if appName == "" {
+		return utils.JSONFail(c, fiber.StatusBadRequest, "App name is required")
+	}
+
+	if err := ac.appModel.DeleteApp(appName); err != nil {
+		ac.logger.Error("Error deleting app", zap.Error(err))
+		if err.Error() == "App not found" {
+			return utils.JSONFail(c, fiber.StatusNotFound, err.Error())
+		}
+		return utils.JSONFail(c, fiber.StatusInternalServerError, "Failed to delete app")
+	}
+
+	return utils.JSONSuccess(c, fiber.StatusOK, "App deleted successfully")
+}

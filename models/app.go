@@ -7,6 +7,9 @@ import (
 	"strings"
 	"sync"
 
+	"errors"
+	"os"
+
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/config"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/utils"
 	"github.com/gofiber/fiber/v2"
@@ -169,6 +172,98 @@ func (am *AppModel) GetAllApps(limit int, page int, priceFilter string) ([]strin
 	return appNames, nil
 }
 
+// AddAppData adds a new app to the CSV and updates the cache.
+func (am *AppModel) AddAppData(app App) error {
+	appMutex.Lock()
+	defer appMutex.Unlock()
+
+	file, err := os.OpenFile(am.config.CSVFilePath, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	record := []string{
+		app.Name,
+		app.Category,
+		strconv.FormatFloat(app.Rating, 'f', 6, 64),
+		strconv.Itoa(app.Reviews),
+		app.Size,
+		app.Installs,
+		app.Type,
+		app.Price,
+		app.ContentRating,
+		app.Genres,
+		app.LastUpdated,
+		app.CurrentVer,
+		app.AndroidVer,
+	}
+
+	if err := writer.Write(record); err != nil {
+		return err
+	}
+
+	// Append to the in-memory cache
+	appCache = append(appCache, app)
+
+	return nil
+}
+func (am *AppModel) DeleteApp(appName string) error {
+	appMutex.Lock()
+	defer appMutex.Unlock()
+
+	// 1. Read all apps from CSV
+	apps, err := am.ParseApps()
+	if err != nil {
+		return err
+	}
+	// 2. Filter out the app to be deleted
+	var updatedApps []App
+	found := false
+	for _, app := range apps {
+		if app.Name != appName {
+			updatedApps = append(updatedApps, app)
+		} else {
+			found = true
+		}
+	}
+	if !found {
+		return errors.New("App not found")
+	}
+	file, err := os.Create(am.config.CSVFilePath) // Create overwrites the file
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	csvBytes, err := csvutil.Marshal(updatedApps)
+	if err != nil {
+		return err
+	}
+
+	r := csv.NewReader(bytes.NewReader(csvBytes))
+	records, err := r.ReadAll()
+	if err != nil {
+		return err
+	}
+
+	err = writer.WriteAll(records)
+	if err != nil {
+		return err
+	}
+
+	// 4. Update the in-memory cache
+	appCache = updatedApps
+
+	return nil
+}
+
 // Helper function for pagination
 func min(a, b int) int {
 	if a < b {
@@ -190,9 +285,3 @@ func cleanPriceStr(priceStr string) string {
 func cleanInstalls(installs string) string {
 	return strings.ReplaceAll(installs, ",", "")
 }
-
-// func parseDate(dateStr string) string {
-// 	layout := "January 2, 2006"
-// 	parsedTime, _ := time.Parse(layout, dateStr)
-// 	return parsedTime.Format("2006-01-02")
-// }
