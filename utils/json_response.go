@@ -5,6 +5,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type JSONResponse struct {
+	Status string      `json:"status"`
+	Data   interface{} `json:"data"`
+}
+
 // JSONSuccess is a generic success output writer
 func JSONSuccess(c *fiber.Ctx, statusCode int, data interface{}) error {
 	return c.Status(statusCode).JSON(jsend.New(data))

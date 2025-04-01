@@ -13,7 +13,6 @@ import (
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/utils"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jszwec/csvutil"
-	"go.uber.org/zap"
 )
 
 type Review struct {
@@ -25,14 +24,14 @@ type Review struct {
 }
 
 type ReviewModel struct {
-	logger *zap.Logger
 	config config.AppConfig
 }
 
 // NewReviewModel initializes a new ReviewModel instance
-func NewReviewModel(logger *zap.Logger, config config.AppConfig) *ReviewModel {
+// models/review.go
+
+func NewReviewModel(config config.AppConfig) *ReviewModel {
 	return &ReviewModel{
-		logger: logger,
 		config: config,
 	}
 }
@@ -46,9 +45,6 @@ var (
 
 // loadCache: Loads review data into cache
 func (rm *ReviewModel) loadCache() error {
-	reviewMutex.Lock()
-	defer reviewMutex.Unlock()
-
 	reviews, err := rm.ParseReviews()
 	if err != nil {
 		return err
@@ -66,14 +62,13 @@ func (rm *ReviewModel) ListReviewsFromCache() ([]Review, error) {
 	})
 
 	reviewMutex.RLock()
+	defer reviewMutex.RUnlock()
 	if len(reviewCache) == 0 {
-		reviewMutex.RUnlock()
 		err := rm.loadCache()
 		if err != nil {
 			return nil, err
 		}
-		reviewMutex.RLock()
-		defer reviewMutex.RUnlock()
+
 	}
 
 	return reviewCache, nil
@@ -81,25 +76,18 @@ func (rm *ReviewModel) ListReviewsFromCache() ([]Review, error) {
 
 // ParseReviews: Reads and parses reviews from CSV using csvutils.Unmarshal
 func (rm *ReviewModel) ParseReviews() ([]Review, error) {
+	if rm.config.ReviewFilePath == "" {
+		return nil, errors.New("REview file path is not configured")
+	}
+
 	records, err := utils.ReadCSV(rm.config.ReviewFilePath)
 	if err != nil {
-		rm.logger.Error("Error reading CSV file", zap.Error(err))
 		return nil, errors.New("could not read CSV file")
 	}
 
-	// Convert records to CSV format
-	var buf bytes.Buffer
-	writer := csv.NewWriter(&buf)
-	err = writer.WriteAll(records)
-	if err != nil {
-		return nil, err
-	}
-	writer.Flush()
-
 	// Unmarshal CSV into struct
 	var reviews []Review
-	if err := csvutil.Unmarshal(buf.Bytes(), &reviews); err != nil {
-		rm.logger.Error("Error unmarshaling CSV data", zap.Error(err))
+	if err := csvutil.Unmarshal(records, &reviews); err != nil {
 		return nil, err
 	}
 
@@ -112,12 +100,6 @@ func (rm *ReviewModel) ParseReviews() ([]Review, error) {
 			validReviews = append(validReviews, review)
 		}
 	}
-
-	rm.logger.Info("Parsed Reviews",
-		zap.Int("total_reviews", len(reviews)),
-		zap.Int("valid_reviews", len(validReviews)),
-	)
-
 	return validReviews, nil
 }
 
@@ -133,26 +115,8 @@ func (rm *ReviewModel) ListReviews(c *fiber.Ctx, appName, sentiment string, pola
 		return nil, err
 	}
 
-	// Extensive logging for debugging
-	rm.logger.Info("Review Filtering Debug",
-		zap.String("appName", appName),
-		zap.String("sentiment", sentiment),
-		zap.Float64("polarityMin", polarityMin),
-		zap.Float64("polarityMax", polarityMax),
-		zap.Int("total_reviews", len(reviews)),
-	)
-
-	// Detailed comparison with logging
 	var filteredReviews []Review
 	for _, review := range reviews {
-		// Logging for each review
-		debugFields := []zap.Field{
-			zap.String("review_app", review.App),
-			zap.String("review_sentiment", review.Sentiment),
-			zap.Float64("review_polarity", review.SentimentPolarity),
-		}
-
-		// Flexible matching with case-insensitive and trimmed comparisons
 		matchesApp := appName == "" ||
 			strings.EqualFold(strings.TrimSpace(review.App), strings.TrimSpace(appName))
 
@@ -164,31 +128,18 @@ func (rm *ReviewModel) ListReviews(c *fiber.Ctx, appName, sentiment string, pola
 
 		if matchesApp && matchesSentiment && matchesPolarity {
 			filteredReviews = append(filteredReviews, review)
-			rm.logger.Debug("Review Matched", append(debugFields,
-				zap.Bool("app_match", matchesApp),
-				zap.Bool("sentiment_match", matchesSentiment),
-				zap.Bool("polarity_match", matchesPolarity),
-			)...)
 		}
 	}
 
-	// More detailed logging
-	rm.logger.Info("Filtering Results",
-		zap.Int("filtered_review_count", len(filteredReviews)),
-	)
-
 	if len(filteredReviews) == 0 {
-		utils.JSONSuccess(c, fiber.StatusNotFound, nil)
-		return nil, errors.New(fmt.Sprintf(
+		return nil, fmt.Errorf(
 			"No reviews found matching: App=%s, Sentiment=%s, Polarity=%f-%f",
 			appName, sentiment, polarityMin, polarityMax,
-		))
+		)
 	}
 
 	return filteredReviews, nil
 }
-
-// AddReview adds a new review to the CSV and updates the cache.
 func (rm *ReviewModel) AddReview(review Review) error {
 	reviewMutex.Lock()
 	defer reviewMutex.Unlock()
@@ -219,9 +170,7 @@ func (rm *ReviewModel) AddReview(review Review) error {
 
 	return nil
 }
-
-// DeleteReviewByAppName deletes all reviews for a given app name.
-func (rm *ReviewModel) DeleteReviewByAppName(appName string) error {
+func (rm *ReviewModel) DeleteReview(appName string) error {
 	reviewMutex.Lock()
 	defer reviewMutex.Unlock()
 
@@ -231,10 +180,11 @@ func (rm *ReviewModel) DeleteReviewByAppName(appName string) error {
 		return err
 	}
 
-	// 2. Filter out reviews to be deleted
+	// 2. Filter out the reviews with matching app name
 	var updatedReviews []Review
 	found := false
 	for _, review := range reviews {
+
 		if !strings.EqualFold(strings.TrimSpace(review.App), strings.TrimSpace(appName)) {
 			updatedReviews = append(updatedReviews, review)
 		} else {
@@ -243,11 +193,11 @@ func (rm *ReviewModel) DeleteReviewByAppName(appName string) error {
 	}
 
 	if !found {
-		return errors.New("No reviews found for app: " + appName)
+		return errors.New("App not found")
 	}
 
-	// 3. Write the updated review list back to CSV using csvutil.Marshal
-	file, err := os.Create(rm.config.ReviewFilePath) // Create overwrites the file
+	// 3. Rewrite the CSV file
+	file, err := os.Create(rm.config.ReviewFilePath)
 	if err != nil {
 		return err
 	}
