@@ -3,18 +3,24 @@ package models
 import (
 	"bytes"
 	"encoding/csv"
+	"errors"
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
 
-	"errors"
-	"os"
-
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/config"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/utils"
-	"github.com/gofiber/fiber/v2"
 	"github.com/jszwec/csvutil"
 	"go.uber.org/zap"
+)
+
+// Global Cache Variables
+var (
+	appCache []App
+	appMutex sync.RWMutex
+	appOnce  sync.Once
 )
 
 // App represents the structure of each row in CSV
@@ -48,18 +54,8 @@ func NewAppModel(logger *zap.Logger, config config.AppConfig) *AppModel {
 	}
 }
 
-// Global Cache Variables
-var (
-	appCache []App
-	appMutex sync.RWMutex
-	appOnce  sync.Once
-)
-
 // loadCache: Loads app data into cache
 func (am *AppModel) loadCache() error {
-	appMutex.Lock()
-	defer appMutex.Unlock()
-
 	apps, err := am.ParseApps()
 	if err != nil {
 		return err
@@ -77,38 +73,29 @@ func (am *AppModel) GetAppsFromCache() ([]App, error) {
 	})
 
 	appMutex.RLock()
+	defer appMutex.RUnlock()
 	if len(appCache) == 0 {
-		appMutex.RUnlock()
 		err := am.loadCache()
 		if err != nil {
 			return nil, err
 		}
-		appMutex.RLock()
 	}
-	defer appMutex.RUnlock()
 
 	return appCache, nil
 }
 
 // ParseApps: Reads and parses apps from CSV using csvutil
 func (am *AppModel) ParseApps() ([]App, error) {
+	if am.config.CSVFilePath == "" {
+		return nil, errors.New("CSV file path is not configured")
+	}
+
 	var apps []App
 	records, err := utils.ReadCSV(am.config.CSVFilePath)
 	if err != nil {
 		return nil, err
 	}
-
-	// Convert records to CSV format
-	var buf bytes.Buffer
-	writer := csv.NewWriter(&buf)
-	err = writer.WriteAll(records)
-	if err != nil {
-		return nil, err
-	}
-	writer.Flush()
-
-	// Unmarshal CSV into struct
-	if err := csvutil.Unmarshal(buf.Bytes(), &apps); err != nil {
+	if err := csvutil.Unmarshal(records, &apps); err != nil {
 		return nil, err
 	}
 
@@ -122,12 +109,11 @@ func (am *AppModel) ParseApps() ([]App, error) {
 		apps[i].Price = strconv.FormatFloat(priceFloat, 'f', 2, 64)
 		apps[i].Installs = cleanInstalls(apps[i].Installs)
 	}
-
 	return apps, nil
 }
 
-// GetAllApps: Returns apps with pagination and filters
-func (am *AppModel) GetAllApps(limit int, page int, priceFilter string) ([]string, error) {
+// ListAllApps: Returns apps with pagination and filters
+func (am *AppModel) ListAllApps(limit int, page int, priceFilter string) ([]string, error) {
 	apps, err := am.GetAppsFromCache()
 	if err != nil {
 		return nil, err
@@ -140,7 +126,7 @@ func (am *AppModel) GetAllApps(limit int, page int, priceFilter string) ([]strin
 		if priceFilter != "" {
 			price, err := strconv.ParseFloat(priceFilter, 64)
 			if err != nil {
-				return nil, fiber.NewError(fiber.StatusBadRequest, "Invalid price value")
+				return nil, fmt.Errorf("Invalid price value")
 			}
 
 			// Convert app.Price (string) to float64
@@ -171,8 +157,6 @@ func (am *AppModel) GetAllApps(limit int, page int, priceFilter string) ([]strin
 
 	return appNames, nil
 }
-
-// AddAppData adds a new app to the CSV and updates the cache.
 func (am *AppModel) AddAppData(app App) error {
 	appMutex.Lock()
 	defer appMutex.Unlock()
@@ -220,6 +204,7 @@ func (am *AppModel) DeleteApp(appName string) error {
 	if err != nil {
 		return err
 	}
+
 	// 2. Filter out the app to be deleted
 	var updatedApps []App
 	found := false
@@ -230,9 +215,12 @@ func (am *AppModel) DeleteApp(appName string) error {
 			found = true
 		}
 	}
+
 	if !found {
 		return errors.New("App not found")
 	}
+
+	// 3. Rewrite the CSV file
 	file, err := os.Create(am.config.CSVFilePath) // Create overwrites the file
 	if err != nil {
 		return err

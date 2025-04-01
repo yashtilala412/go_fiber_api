@@ -1,0 +1,175 @@
+definitions:
+  models.App:
+    properties:
+      androidVer:
+        type: string
+      category:
+        type: string
+      contentRating:
+        type: string
+      currentVer:
+        type: string
+      genres:
+        type: string
+      installs:
+        type: string
+      lastUpdated:
+        type: string
+      name:
+        type: string
+      price:
+        type: string
+      rating:
+        type: number
+      reviews:
+        type: integer
+      size:
+        type: string
+      type:
+        type: string
+    type: object
+  models.Review:
+    properties:
+      app:
+        type: string
+      sentiment:
+        type: string
+      sentimentPolarity:
+        type: number
+      sentimentSubjectivity:
+        type: number
+      translatedReview:
+        type: string
+    type: object
+  utils.JSONResponse:
+    properties:
+      data: {}
+      status:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/v1/apps:
+    post:
+      consumes:
+      - application/json
+      description: Add a new app to the system
+      parameters:
+      - description: App object to be added
+        in: body
+        name: app
+        required: true
+        schema:
+          $ref: '#/definitions/models.App'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: App added successfully
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Add a new app
+      tags:
+      - apps
+  /api/v1/apps/:name:
+    delete:
+      description: Delete all reviews for a given app name
+      parameters:
+      - description: App name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reviews deleted successfully
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Delete reviews for an app
+      tags:
+      - reviews
+  /api/v1/reviews:
+    post:
+      consumes:
+      - application/json
+      description: Add a new review to the system
+      parameters:
+      - description: Review object to be added
+        in: body
+        name: review
+        required: true
+        schema:
+          $ref: '#/definitions/models.Review'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Review added successfully
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Add a new review
+      tags:
+      - reviews
+  /api/v1/reviews/:name:
+    delete:
+      description: Delete all reviews for a given app name
+      parameters:
+      - description: App name
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reviews deleted successfully
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.JSONResponse'
+      summary: Delete reviews for an app
+      tags:
+      - reviews
+swagger: "2.0"

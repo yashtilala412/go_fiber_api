@@ -1,7 +1,12 @@
+// controllers/api/v1/review_controller.go
+
 package v1
 
 import (
+	"net/url"
 	"strconv"
+
+	"errors"
 
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
@@ -20,7 +25,7 @@ type ReviewController struct {
 
 // NewReviewController initializes the ReviewController with dependencies.
 func NewReviewController(logger *zap.Logger, config config.AppConfig) *ReviewController {
-	model := models.NewReviewModel(logger, config)
+	model := models.NewReviewModel(config) // Corrected line
 	return &ReviewController{
 		reviewModel: model,
 		logger:      logger,
@@ -28,6 +33,21 @@ func NewReviewController(logger *zap.Logger, config config.AppConfig) *ReviewCon
 	}
 }
 
+// @Summary List reviews
+// @Description Get a list of reviews with filters
+// @Tags reviews
+// @Accept json
+// @Produce json
+// @Param appName query string false "App Name" default("DefaultAppName")
+// @Param sentiment query string false "Sentiment" default("DefaultSentiment")
+// @Param polarityMin query number false "Minimum Polarity" default(-1)
+// @Param polarityMax query number false "Maximum Polarity" default(1)
+// @Success 200 {array} models.Review
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /api/v1/reviews [get]
+
+// ... (rest of the ReviewController code remains the same)
 // ListReviews handles fetching reviews with filters.
 func (rc *ReviewController) ListReviews(c *fiber.Ctx) error {
 	// Fetch query parameters with default values from constants
@@ -41,7 +61,8 @@ func (rc *ReviewController) ListReviews(c *fiber.Ctx) error {
 			zap.String("value", c.Query(constants.ParamPolarityMin)),
 			zap.Error(err),
 		)
-		polarityMin = 0.0 // Set a safe default
+		return utils.JSONFail(c, fiber.StatusBadRequest, constants.ErrorInvalidOffset)
+
 	}
 
 	polarityMax, err := strconv.ParseFloat(c.Query(constants.ParamPolarityMax, constants.DefaultPolarityMax), 64)
@@ -50,7 +71,8 @@ func (rc *ReviewController) ListReviews(c *fiber.Ctx) error {
 			zap.String("value", c.Query(constants.ParamPolarityMax)),
 			zap.Error(err),
 		)
-		polarityMax = 1.0 // Set a safe default
+
+		return utils.JSONFail(c, fiber.StatusBadRequest, constants.ErrorInvalidOffset)
 	}
 
 	// Log the parsed parameters
@@ -64,14 +86,31 @@ func (rc *ReviewController) ListReviews(c *fiber.Ctx) error {
 	// Fetch reviews from the model, passing the fiber context
 	reviews, err := rc.reviewModel.ListReviews(c, appName, sentiment, polarityMin, polarityMax)
 	if err != nil {
-		rc.logger.Error("Error fetching reviews", zap.Error(err))
+
 		return utils.JSONFail(c, fiber.StatusBadRequest, err.Error())
+	}
+	if len(reviews) == 0 {
+		err = errors.New("No apps found with filters")
+		return utils.JSONSuccess(c, fiber.StatusOK, map[string]interface{}{
+			"reviews": reviews,
+			"total":   0,
+			"message": "No apps found matching the specified filters",
+		})
 	}
 
 	return utils.JSONSuccess(c, fiber.StatusOK, reviews)
 }
 
-// AddReview handles the request to add a new review.
+// @Summary Add a new review
+// @Description Add a new review to the system
+// @Tags reviews
+// @Accept json
+// @Produce json
+// @Param review body models.Review true "Review object to be added"
+// @Success 201 {string} string "Review added successfully"
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /api/v1/reviews [post]
 func (rc *ReviewController) AddReview(c *fiber.Ctx) error {
 	var review models.Review
 	if err := c.BodyParser(&review); err != nil {
@@ -86,16 +125,36 @@ func (rc *ReviewController) AddReview(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, fiber.StatusCreated, "Review added successfully")
 }
-func (rc *ReviewController) DeleteReviewByAppName(c *fiber.Ctx) error {
-	appName := c.Params("appname")
-	if appName == "" {
-		return utils.JSONFail(c, fiber.StatusBadRequest, "App name is required")
+
+// @Summary Delete reviews for an app
+// @Description Delete all reviews for a given app name
+// @Tags reviews
+// @Produce json
+// @Param name path string true "App name"
+// @Success 200 {string} string "Reviews deleted successfully"
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 404 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /api/v1/reviews/:name [delete]
+func (rc *ReviewController) DeleteReview(c *fiber.Ctx) error {
+
+	// Get the URL-encoded app name parameter
+	encodedAppName := c.Params("name")
+
+	// URL decode the app name (important for names with spaces and special characters)
+	appName, err := url.QueryUnescape(encodedAppName)
+	if err != nil {
+		rc.logger.Error("Error decoding app name", zap.Error(err))
+		return utils.JSONFail(c, fiber.StatusBadRequest, "Invalid app name format")
 	}
 
-	if err := rc.reviewModel.DeleteReviewByAppName(appName); err != nil {
+	rc.logger.Info("Deleting reviews for app with name", zap.String("appName", appName))
+
+	// Call the model's DeleteReview method with the decoded name
+	if err := rc.reviewModel.DeleteReview(appName); err != nil {
 		rc.logger.Error("Error deleting reviews", zap.Error(err))
-		if err.Error() == "No reviews found for app: "+appName {
-			return utils.JSONFail(c, fiber.StatusNotFound, err.Error())
+		if err.Error() == "App not found" {
+			return utils.JSONFail(c, fiber.StatusNotFound, "App not found")
 		}
 		return utils.JSONFail(c, fiber.StatusInternalServerError, "Failed to delete reviews")
 	}

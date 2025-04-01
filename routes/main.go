@@ -39,15 +39,18 @@ func SetupAppRoutes(v1 fiber.Router, logger *zap.Logger, config config.AppConfig
 	appGroup := v1.Group("/apps")
 	appGroup.Get("/", appController.ListApps) // Fetch apps with limit, page, and price filter
 	appGroup.Post("/", appController.AddApp)  // Add a new app
-	appGroup.Delete("/:appname", appController.DeleteApp)
+	appGroup.Delete("/:name", appController.DeleteApp)
 
 }
 
+// SetupreviewRoutes defines the routes for app management
 func SetupReviewRoutes(v1 fiber.Router, logger *zap.Logger, config config.AppConfig) {
+
 	reviewController := controller.NewReviewController(logger, config)
 
 	reviewGroup := v1.Group("/review")
 	reviewGroup.Get("/", reviewController.ListReviews) // Fetch reviews with filters
-	reviewGroup.Post("/", reviewController.AddReview)  // Add a new review
-	reviewGroup.Delete("/deletereview/:appname", reviewController.DeleteReviewByAppName)
+	reviewGroup.Post("/", reviewController.AddReview)
+	reviewGroup.Delete("/:name", reviewController.DeleteReview)
+
 }
