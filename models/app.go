@@ -1,7 +1,6 @@
 package models
 
 import (
-	"bytes"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -9,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/go-playground/validator/v10"
 
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/config"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/utils"
@@ -21,23 +22,24 @@ var (
 	appCache []App
 	appMutex sync.RWMutex
 	appOnce  sync.Once
+	validate = validator.New()
 )
 
 // App represents the structure of each row in CSV
 type App struct {
-	Name          string  `csv:"App"`
-	Category      string  `csv:"Category"`
-	Rating        float64 `csv:"Rating"`
-	Reviews       int     `csv:"Reviews"`
-	Size          string  `csv:"Size"`
-	Installs      string  `csv:"Installs"`
-	Type          string  `csv:"Type"`
-	Price         string  `csv:"Price"`
-	ContentRating string  `csv:"Content Rating"`
-	Genres        string  `csv:"Genres"`
-	LastUpdated   string  `csv:"Last Updated"`
-	CurrentVer    string  `csv:"Current Ver"`
-	AndroidVer    string  `csv:"Android Ver"`
+	Name          string  `csv:"App" validate:"required"`
+	Category      string  `csv:"Category" validate:"required"`
+	Rating        float64 `csv:"Rating" validate:"gte=0,lte=5"`
+	Reviews       int     `csv:"Reviews" validate:"gte=0"`
+	Size          string  `csv:"Size" validate:"required"`
+	Installs      string  `csv:"Installs" validate:"required"`
+	Type          string  `csv:"Type" validate:"required"`
+	Price         string  `csv:"Price" validate:"required"`
+	ContentRating string  `csv:"Content Rating" validate:"required"`
+	Genres        string  `csv:"Genres" validate:"required"`
+	LastUpdated   string  `csv:"Last Updated" validate:"required"`
+	CurrentVer    string  `csv:"Current Ver" validate:"required"`
+	AndroidVer    string  `csv:"Android Ver" validate:"required"`
 }
 
 // AppModel contains the logger and config
@@ -111,6 +113,10 @@ func (am *AppModel) ParseApps() ([]App, error) {
 	}
 	return apps, nil
 }
+func (a *App) ValidateApp() error {
+
+	return validate.Struct(a)
+}
 
 // ListAllApps: Returns apps with pagination and filters
 func (am *AppModel) ListAllApps(limit int, page int, priceFilter string) ([]string, error) {
@@ -157,7 +163,11 @@ func (am *AppModel) ListAllApps(limit int, page int, priceFilter string) ([]stri
 
 	return appNames, nil
 }
+
 func (am *AppModel) AddAppData(app App) error {
+	if err := app.ValidateApp(); err != nil {
+		return err
+	}
 	appMutex.Lock()
 	defer appMutex.Unlock()
 
@@ -192,62 +202,6 @@ func (am *AppModel) AddAppData(app App) error {
 
 	// Append to the in-memory cache
 	appCache = append(appCache, app)
-
-	return nil
-}
-func (am *AppModel) DeleteApp(appName string) error {
-	appMutex.Lock()
-	defer appMutex.Unlock()
-
-	// 1. Read all apps from CSV
-	apps, err := am.ParseApps()
-	if err != nil {
-		return err
-	}
-
-	// 2. Filter out the app to be deleted
-	var updatedApps []App
-	found := false
-	for _, app := range apps {
-		if app.Name != appName {
-			updatedApps = append(updatedApps, app)
-		} else {
-			found = true
-		}
-	}
-
-	if !found {
-		return errors.New("App not found")
-	}
-
-	// 3. Rewrite the CSV file
-	file, err := os.Create(am.config.CSVFilePath) // Create overwrites the file
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
-	csvBytes, err := csvutil.Marshal(updatedApps)
-	if err != nil {
-		return err
-	}
-
-	r := csv.NewReader(bytes.NewReader(csvBytes))
-	records, err := r.ReadAll()
-	if err != nil {
-		return err
-	}
-
-	err = writer.WriteAll(records)
-	if err != nil {
-		return err
-	}
-
-	// 4. Update the in-memory cache
-	appCache = updatedApps
 
 	return nil
 }
