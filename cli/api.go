@@ -11,7 +11,6 @@ import (
 	pMetrics "git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/pkg/prometheus"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/routes"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/swagger"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +24,6 @@ func GetAPICommandDef(cfg config.AppConfig, logger *zap.Logger) cobra.Command {
 
 			// Create fiber app
 			app := fiber.New(fiber.Config{})
-			app.Get("/swagger/*", swagger.HandlerDefault) // Serve Swagger UI
 
 			promMetrics := pMetrics.InitPrometheusMetrics()
 

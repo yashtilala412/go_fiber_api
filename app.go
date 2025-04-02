@@ -19,7 +19,6 @@ import (
 
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/cli"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/config"
-	_ "git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/docs"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/logger"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/routinewrapper"
 	"github.com/getsentry/sentry-go"
