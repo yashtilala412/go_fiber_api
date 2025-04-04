@@ -3,10 +3,14 @@
 package v1
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/url"
 	"strconv"
 
 	"errors"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 
@@ -24,7 +28,7 @@ type ReviewController struct {
 
 // NewReviewController initializes the ReviewController with dependencies.
 func NewReviewController(logger *zap.Logger, config config.AppConfig) *ReviewController {
-	model := models.NewReviewModel(config) // Corrected line
+	model := models.NewReviewModel(config)
 	return &ReviewController{
 		reviewModel: model,
 		logger:      logger,
@@ -32,7 +36,6 @@ func NewReviewController(logger *zap.Logger, config config.AppConfig) *ReviewCon
 	}
 }
 
-// ... (rest of the ReviewController code remains the same)
 // ListReviews handles fetching reviews with filters.
 func (rc *ReviewController) ListReviews(c *fiber.Ctx) error {
 	// Fetch query parameters with default values from constants
@@ -85,11 +88,20 @@ func (rc *ReviewController) ListReviews(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, fiber.StatusOK, reviews)
 }
+
 func (rc *ReviewController) AddReview(c *fiber.Ctx) error {
 	var review models.Review
-	if err := c.BodyParser(&review); err != nil {
+	body := c.Body()
+	if err := json.Unmarshal(body, &review); err != nil {
 		rc.logger.Error("Error parsing review data", zap.Error(err))
 		return utils.JSONFail(c, fiber.StatusBadRequest, "Invalid review data")
+	}
+
+	// Validate the review struct
+	validate := validator.New() // Initialize validator here
+	if err := validate.Struct(review); err != nil {
+		rc.logger.Error("Validation error", zap.Error(err))
+		return utils.JSONFail(c, fiber.StatusBadRequest, utils.ValidatorErrorString(err))
 	}
 
 	if err := rc.reviewModel.AddReview(review); err != nil {
@@ -98,4 +110,27 @@ func (rc *ReviewController) AddReview(c *fiber.Ctx) error {
 	}
 
 	return utils.JSONSuccess(c, fiber.StatusCreated, "Review added successfully")
+}
+func (rc *ReviewController) DeleteReview(c *fiber.Ctx) error {
+	// Get the URL-encoded app name parameter
+	encodedAppName := c.Params(constants.ParamAppName)
+
+	// URL decode the app name (important for names with spaces and special characters)
+	appName, err := url.QueryUnescape(encodedAppName)
+	if err != nil {
+		rc.logger.Error(constants.ErrDecodingAppName, zap.Error(err))
+		return utils.JSONFail(c, http.StatusBadRequest, constants.ErrInvalidAppNameFormat) // Use http.StatusBadRequest
+	}
+
+	rc.logger.Info(constants.LogDeletingReviews, zap.String(constants.ParamAppName, appName))
+
+	// Call the model's DeleteReview method with the decoded name
+	if err := rc.reviewModel.DeleteReview(appName); err != nil {
+		rc.logger.Error(constants.ErrDeletingReviews, zap.Error(err))
+		if err.Error() == constants.AppNotFoundErrorMessage {
+			return utils.JSONFail(c, http.StatusBadRequest, constants.ErrAppNotFound) // Use http.StatusBadRequest
+		}
+		return utils.JSONFail(c, http.StatusInternalServerError, constants.ErrDeleteReviews) // Use http.StatusInternalServerError
+	}
+	return utils.JSONSuccess(c, http.StatusOK, constants.ReviewsDeletedSuccessfully) // Use http.StatusOK
 }
