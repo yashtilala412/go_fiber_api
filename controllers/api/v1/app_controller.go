@@ -3,8 +3,11 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/url"
 	"strconv"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 
@@ -64,6 +67,7 @@ func (ac *AppController) ListApps(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, fiber.StatusOK, apps)
 }
+
 func (ac *AppController) AddApp(c *fiber.Ctx) error {
 	var app models.App
 	body := c.Body()
@@ -71,9 +75,41 @@ func (ac *AppController) AddApp(c *fiber.Ctx) error {
 		ac.logger.Error("Error parsing app data", zap.Error(err))
 		return utils.JSONFail(c, fiber.StatusBadRequest, "Invalid app data")
 	}
+
+	// Validate the app struct
+	validate := validator.New() // Initialize validator here
+	if err := validate.Struct(app); err != nil {
+		ac.logger.Error("Validation error", zap.Error(err))
+		return utils.JSONFail(c, fiber.StatusBadRequest, utils.ValidatorErrorString(err)) // Use ValidateErrorString
+	}
+
 	if err := ac.appModel.AddAppData(app); err != nil {
 		ac.logger.Error("Error adding app", zap.Error(err))
 		return utils.JSONFail(c, fiber.StatusInternalServerError, "Failed to add app")
 	}
+
 	return utils.JSONSuccess(c, fiber.StatusCreated, "App added successfully")
+}
+func (ac *AppController) DeleteApp(c *fiber.Ctx) error {
+	// Get the URL-encoded app name parameter using the constant
+	encodedAppName := c.Params(constants.ParamAppName)
+	appName, err := url.QueryUnescape(encodedAppName)
+
+	if err != nil {
+		ac.logger.Error(constants.ErrDecodingAppName, zap.Error(err))
+		return utils.JSONFail(c, http.StatusBadRequest, constants.ErrInvalidAppNameFormat)
+	}
+
+	ac.logger.Info(constants.LogDeletingApp, zap.String(constants.ParamAppName, appName))
+
+	// Call the model's DeleteApp method with the decoded name
+	if err := ac.appModel.DeleteApp(appName); err != nil {
+		ac.logger.Error(constants.ErrDeletingApp, zap.Error(err))
+		if err.Error() == constants.AppNotFoundErrorMessage {
+			return utils.JSONFail(c, http.StatusBadRequest, constants.ErrAppNotFound)
+		}
+		return utils.JSONFail(c, http.StatusInternalServerError, constants.ErrDeleteApp)
+	}
+
+	return utils.JSONSuccess(c, http.StatusOK, constants.AppDeletedSuccessfully)
 }

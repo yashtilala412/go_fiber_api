@@ -1,6 +1,7 @@
 package models
 
 import (
+	"bytes"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -9,9 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/go-playground/validator/v10"
-
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/config"
+	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/constants"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/utils"
 	"github.com/jszwec/csvutil"
 	"go.uber.org/zap"
@@ -22,7 +22,6 @@ var (
 	appCache []App
 	appMutex sync.RWMutex
 	appOnce  sync.Once
-	validate = validator.New()
 )
 
 // App represents the structure of each row in CSV
@@ -62,7 +61,6 @@ func (am *AppModel) loadCache() error {
 	if err != nil {
 		return err
 	}
-
 	appCache = apps
 	return nil
 }
@@ -73,7 +71,6 @@ func (am *AppModel) GetAppsFromCache() ([]App, error) {
 	appOnce.Do(func() {
 		_ = am.loadCache()
 	})
-
 	appMutex.RLock()
 	defer appMutex.RUnlock()
 	if len(appCache) == 0 {
@@ -82,7 +79,6 @@ func (am *AppModel) GetAppsFromCache() ([]App, error) {
 			return nil, err
 		}
 	}
-
 	return appCache, nil
 }
 
@@ -112,10 +108,6 @@ func (am *AppModel) ParseApps() ([]App, error) {
 		apps[i].Installs = cleanInstalls(apps[i].Installs)
 	}
 	return apps, nil
-}
-func (a *App) ValidateApp() error {
-
-	return validate.Struct(a)
 }
 
 // ListAllApps: Returns apps with pagination and filters
@@ -165,9 +157,6 @@ func (am *AppModel) ListAllApps(limit int, page int, priceFilter string) ([]stri
 }
 
 func (am *AppModel) AddAppData(app App) error {
-	if err := app.ValidateApp(); err != nil {
-		return err
-	}
 	appMutex.Lock()
 	defer appMutex.Unlock()
 
@@ -202,6 +191,62 @@ func (am *AppModel) AddAppData(app App) error {
 
 	// Append to the in-memory cache
 	appCache = append(appCache, app)
+
+	return nil
+}
+func (am *AppModel) DeleteApp(appName string) error {
+	appMutex.Lock()
+	defer appMutex.Unlock()
+
+	// 1. Read all apps from CSV
+	apps, err := am.ParseApps()
+	if err != nil {
+		return errors.New(constants.ErrParsingCSV) // Use constant here
+	}
+
+	// 2. Filter out the app to be deleted
+	var updatedApps []App
+	found := false
+	for _, app := range apps {
+		if app.Name != appName {
+			updatedApps = append(updatedApps, app)
+		} else {
+			found = true
+		}
+	}
+
+	if !found {
+		return errors.New(constants.AppNotFoundErrorMessage) // Use constant here
+	}
+
+	// 3. Rewrite the CSV file
+	file, err := os.Create(am.config.CSVFilePath) // Create overwrites the file
+	if err != nil {
+		return errors.New(constants.ErrCreatingCSVFile) // Use constant here
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	csvBytes, err := csvutil.Marshal(updatedApps)
+	if err != nil {
+		return errors.New(constants.ErrMarshallingCSVData) // Use constant here
+	}
+
+	r := csv.NewReader(bytes.NewReader(csvBytes))
+	records, err := r.ReadAll()
+	if err != nil {
+		return errors.New(constants.ErrReadingCSVRecords) // Use constant here
+	}
+
+	err = writer.WriteAll(records)
+	if err != nil {
+		return errors.New(constants.ErrWritingCSVRecords) // Use constant here
+	}
+
+	// 4. Update the in-memory cache
+	appCache = updatedApps
 
 	return nil
 }

@@ -1,11 +1,13 @@
 package routes
 
 import (
+	"fmt"
 	"sync"
 
 	"go.uber.org/zap"
 
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/config"
+	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/constants"
 	controller "git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/controllers/api/v1"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/middlewares"
 	pMetrics "git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/pkg/prometheus"
@@ -39,6 +41,7 @@ func SetupAppRoutes(v1 fiber.Router, logger *zap.Logger, config config.AppConfig
 	appGroup := v1.Group("/apps")
 	appGroup.Get("/", appController.ListApps) // Fetch apps with limit, page, and price filter
 	appGroup.Post("/", appController.AddApp)  // Add a new app
+	appGroup.Delete(fmt.Sprintf("/:%s", constants.ParamAppName), appController.DeleteApp)
 
 }
 
@@ -50,4 +53,5 @@ func SetupReviewRoutes(v1 fiber.Router, logger *zap.Logger, config config.AppCon
 	reviewGroup := v1.Group("/review")
 	reviewGroup.Get("/", reviewController.ListReviews) // Fetch reviews with filters
 	reviewGroup.Post("/", reviewController.AddReview)  //add review with given data
+	reviewGroup.Delete(fmt.Sprintf("/:%s", constants.ParamAppName), reviewController.DeleteReview)
 }
