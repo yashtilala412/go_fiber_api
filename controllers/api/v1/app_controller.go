@@ -33,6 +33,18 @@ func NewAppController(logger *zap.Logger, config config.AppConfig) *AppControlle
 	}
 }
 
+// @Summary List apps
+// @Description Get a list of apps with pagination and filters
+// @Tags apps
+// @Accept json
+// @Produce json
+// @Param limit query int false "Limit" default(10)
+// @Param offset query int false "Offset" default(0)
+// @Param priceFilter query string false "Price Filter"
+// @Success 200 {array} models.App
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /api/v1/apps [get]
 // ListApps handles the request for fetching all apps with pagination and filters.
 func (ac *AppController) ListApps(c *fiber.Ctx) error {
 	limit, err := strconv.Atoi(c.Query(constants.Limit, constants.DefaultLimit))
@@ -68,6 +80,17 @@ func (ac *AppController) ListApps(c *fiber.Ctx) error {
 	return utils.JSONSuccess(c, fiber.StatusOK, apps)
 }
 
+// @Summary Add a new app
+// @Description Add a new app to the system
+// @Tags apps
+// @Accept json
+// @Produce json
+// @Param app body models.App true "App object to be added"
+// @Success 201 {string} string "App added successfully"
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /api/v1/apps [post]
+
 func (ac *AppController) AddApp(c *fiber.Ctx) error {
 	var app models.App
 	body := c.Body()
@@ -90,6 +113,17 @@ func (ac *AppController) AddApp(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, fiber.StatusCreated, "App added successfully")
 }
+
+// @Summary Delete reviews for an app
+// @Description Delete all reviews for a given app name
+// @Tags reviews
+// @Produce json
+// @Param name path string true "App name"
+// @Success 200 {string} string "Reviews deleted successfully"
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 404 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// // @Router /api/v1/apps/{name} [delete]
 func (ac *AppController) DeleteApp(c *fiber.Ctx) error {
 	// Get the URL-encoded app name parameter using the constant
 	encodedAppName := c.Params(constants.ParamAppName)
