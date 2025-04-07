@@ -36,6 +36,20 @@ func NewReviewController(logger *zap.Logger, config config.AppConfig) *ReviewCon
 	}
 }
 
+// @Summary List reviews
+// @Description Get a list of reviews with filters
+// @Tags reviews
+// @Accept json
+// @Produce json
+// @Param appName query string false "App Name" default("DefaultAppName")
+// @Param sentiment query string false "Sentiment" default("DefaultSentiment")
+// @Param polarityMin query number false "Minimum Polarity" default(-1)
+// @Param polarityMax query number false "Maximum Polarity" default(1)
+// @Success 200 {array} models.Review
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /api/v1/reviews [get]
+
 // ListReviews handles fetching reviews with filters.
 func (rc *ReviewController) ListReviews(c *fiber.Ctx) error {
 	// Fetch query parameters with default values from constants
@@ -89,6 +103,17 @@ func (rc *ReviewController) ListReviews(c *fiber.Ctx) error {
 	return utils.JSONSuccess(c, fiber.StatusOK, reviews)
 }
 
+// @Summary Add a new review
+// @Description Add a new review to the system
+// @Tags reviews
+// @Accept json
+// @Produce json
+// @Param review body models.Review true "Review object to be added"
+// @Success 201 {string} string "Review added successfully"
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /api/v1/reviews [post]
+
 func (rc *ReviewController) AddReview(c *fiber.Ctx) error {
 	var review models.Review
 	body := c.Body()
@@ -111,6 +136,17 @@ func (rc *ReviewController) AddReview(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, fiber.StatusCreated, "Review added successfully")
 }
+
+// @Summary Delete reviews for an app
+// @Description Delete all reviews for a given app name
+// @Tags reviews
+// @Produce json
+// @Param name path string true "App name"
+// @Success 200 {string} string "Reviews deleted successfully"
+// @Failure 400 {object} utils.JSONResponse
+// @Failure 404 {object} utils.JSONResponse
+// @Failure 500 {object} utils.JSONResponse
+// @Router /api/v1/review/{name} [delete]
 func (rc *ReviewController) DeleteReview(c *fiber.Ctx) error {
 	// Get the URL-encoded app name parameter
 	encodedAppName := c.Params(constants.ParamAppName)
