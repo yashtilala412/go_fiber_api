@@ -47,15 +47,25 @@ func NewAppController(logger *zap.Logger, config config.AppConfig) *AppControlle
 // @Router /api/v1/apps [get]
 // ListApps handles the request for fetching all apps with pagination and filters.
 func (ac *AppController) ListApps(c *fiber.Ctx) error {
-	limit, err := strconv.Atoi(c.Query(constants.Limit, constants.DefaultLimit))
-	if err != nil || limit <= 0 {
-		ac.logger.Error(constants.ErrorInvalidLimit+err.Error(), zap.Error(err))
+	limitStr := c.Query(constants.Limit, constants.DefaultLimit)
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		ac.logger.Error(constants.ErrorInvalidLimit+" - Parsing Error", zap.Error(err))
+		return utils.JSONError(c, fiber.StatusBadRequest, constants.ErrorInvalidLimit)
+	}
+	if limit <= 0 {
+		ac.logger.Error(constants.ErrorInvalidLimit+" - Invalid Value", zap.Int("limit", limit))
 		return utils.JSONError(c, fiber.StatusBadRequest, constants.ErrorInvalidLimit)
 	}
 
-	offset, err := strconv.Atoi(c.Query(constants.Offset, constants.DefaultOffset))
-	if err != nil || offset < 0 {
-		ac.logger.Error(constants.ErrorInvalidOffset+err.Error(), zap.Error(err))
+	offsetStr := c.Query(constants.Offset, constants.DefaultOffset)
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		ac.logger.Error(constants.ErrorInvalidOffset+" - Parsing Error", zap.Error(err))
+		return utils.JSONFail(c, fiber.StatusBadRequest, constants.ErrorInvalidOffset)
+	}
+	if offset < 0 {
+		ac.logger.Error(constants.ErrorInvalidOffset+" - Invalid Value", zap.Int("offset", offset))
 		return utils.JSONFail(c, fiber.StatusBadRequest, constants.ErrorInvalidOffset)
 	}
 
@@ -79,6 +89,7 @@ func (ac *AppController) ListApps(c *fiber.Ctx) error {
 
 	return utils.JSONSuccess(c, fiber.StatusOK, apps)
 }
+
 
 // @Summary Add a new app
 // @Description Add a new app to the system
