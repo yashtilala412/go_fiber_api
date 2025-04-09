@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/config"
+	_ "git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/docs"
 	pMetrics "git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/pkg/prometheus"
 	"git.pride.improwised.dev/Onboarding-2025/Yash-Tilala/fiber-csv-app/routes"
 	"github.com/gofiber/fiber/v2"

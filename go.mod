@@ -19,7 +19,6 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/swaggo/swag v1.16.4
 	go.uber.org/zap v1.24.0
-	gopkg.in/go-playground/validator.v9 v9.31.0
 )
 
 require go.uber.org/goleak v1.2.1 // indirect
@@ -66,6 +65,5 @@ require (
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
-	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
