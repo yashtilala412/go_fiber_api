@@ -41,7 +41,7 @@ func NewAppController(logger *zap.Logger, config config.AppConfig) *AppControlle
 // @Param limit query int false "Limit" default(10)
 // @Param offset query int false "Offset" default(0)
 // @Param priceFilter query string false "Price Filter"
-// @Success 200 {array} models.App
+// @Success 200 {array} models.App.
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/v1/apps [get]
@@ -90,14 +90,13 @@ func (ac *AppController) ListApps(c *fiber.Ctx) error {
 	return utils.JSONSuccess(c, fiber.StatusOK, apps)
 }
 
-
 // @Summary Add a new app
 // @Description Add a new app to the system
 // @Tags apps
 // @Accept json
 // @Produce json
 // @Param app body models.App true "App object to be added"
-// @Success 201 {string} string "App added successfully"
+// @Success 200 {object} utils.JSONResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/v1/apps [post]
@@ -130,7 +129,7 @@ func (ac *AppController) AddApp(c *fiber.Ctx) error {
 // @Tags reviews
 // @Produce json
 // @Param name path string true "App name"
-// @Success 200 {string} string "Reviews deleted successfully"
+// @Success 201 {object} utils.JSONSuccessResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 404 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse

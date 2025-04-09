@@ -96,7 +96,7 @@ const docTemplate = `{
                     "201": {
                         "description": "App added successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONSuccessResponse"
                         }
                     },
                     "400": {
@@ -137,7 +137,7 @@ const docTemplate = `{
                     "200": {
                         "description": "App deleted successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONResponse"
                         }
                     },
                     "400": {
@@ -248,7 +248,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Review added successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONResponse"
                         }
                     },
                     "400": {
@@ -289,7 +289,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Reviews deleted successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONResponse"
                         }
                     },
                     "400": {
@@ -380,6 +380,15 @@ const docTemplate = `{
             }
         },
         "utils.JSONResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "utils.JSONSuccessResponse": {
             "type": "object",
             "properties": {
                 "data": {},

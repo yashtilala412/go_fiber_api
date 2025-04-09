@@ -5,6 +5,59 @@
     },
     "paths": {
         "/api/v1/apps": {
+            "get": {
+                "description": "Get a list of apps with pagination and filters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "apps"
+                ],
+                "summary": "List apps",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Price Filter",
+                        "name": "priceFilter",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.App"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.JSONResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.JSONResponse"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Add a new app to the system",
                 "consumes": [
@@ -32,7 +85,7 @@
                     "201": {
                         "description": "App added successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONSuccessResponse"
                         }
                     },
                     "400": {
@@ -52,14 +105,14 @@
         },
         "/api/v1/apps/:name": {
             "delete": {
-                "description": "Delete all reviews for a given app name",
+                "description": "Delete an app from the system by name",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "reviews"
+                    "apps"
                 ],
-                "summary": "Delete reviews for an app",
+                "summary": "Delete an app by name",
                 "parameters": [
                     {
                         "type": "string",
@@ -71,9 +124,9 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Reviews deleted successfully",
+                        "description": "App deleted successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONResponse"
                         }
                     },
                     "400": {
@@ -125,7 +178,7 @@
                     "201": {
                         "description": "Review added successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONResponse"
                         }
                     },
                     "400": {
@@ -166,7 +219,7 @@
                     "200": {
                         "description": "Reviews deleted successfully",
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/definitions/utils.JSONResponse"
                         }
                     },
                     "400": {
@@ -257,6 +310,15 @@
             }
         },
         "utils.JSONResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "utils.JSONSuccessResponse": {
             "type": "object",
             "properties": {
                 "data": {},

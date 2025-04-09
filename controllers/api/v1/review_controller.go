@@ -109,7 +109,7 @@ func (rc *ReviewController) ListReviews(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Param review body models.Review true "Review object to be added"
-// @Success 201 {string} string "Review added successfully"
+// @Success 201 {object} utils.JSONSuccessResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse
 // @Router /api/v1/reviews [post]
@@ -142,7 +142,7 @@ func (rc *ReviewController) AddReview(c *fiber.Ctx) error {
 // @Tags reviews
 // @Produce json
 // @Param name path string true "App name"
-// @Success 200 {string} string "Reviews deleted successfully"
+// @Success 201 {object} utils.JSONSuccessResponse
 // @Failure 400 {object} utils.JSONResponse
 // @Failure 404 {object} utils.JSONResponse
 // @Failure 500 {object} utils.JSONResponse

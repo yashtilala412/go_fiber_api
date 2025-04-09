@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"gopkg.in/go-playground/validator.v9"
+	"github.com/go-playground/validator/v10"
 )
 
 const VALIDATE_MESSAGE = "fields are invalid."
