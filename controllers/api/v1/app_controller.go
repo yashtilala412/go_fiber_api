@@ -148,7 +148,6 @@ func (ac *AppController) DeleteApp(c *fiber.Ctx) error {
 
 	// Call the model's DeleteApp method with the decoded name
 	if err := ac.appModel.DeleteApp(appName); err != nil {
-		ac.logger.Error(constants.ErrDeletingApp, zap.Error(err))
 		if err.Error() == constants.AppNotFoundErrorMessage {
 			return utils.JSONFail(c, http.StatusBadRequest, constants.ErrAppNotFound)
 		}
