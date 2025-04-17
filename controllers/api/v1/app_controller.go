@@ -105,7 +105,6 @@ func (ac *AppController) AddApp(c *fiber.Ctx) error {
 	var app models.App
 	body := c.Body()
 	if err := json.Unmarshal(body, &app); err != nil {
-		ac.logger.Error("Error parsing app data", zap.Error(err))
 		return utils.JSONFail(c, fiber.StatusBadRequest, "Invalid app data")
 	}
 
@@ -117,7 +116,6 @@ func (ac *AppController) AddApp(c *fiber.Ctx) error {
 	}
 
 	if err := ac.appModel.AddAppData(app); err != nil {
-		ac.logger.Error("Error adding app", zap.Error(err))
 		return utils.JSONFail(c, fiber.StatusInternalServerError, "Failed to add app")
 	}
 
