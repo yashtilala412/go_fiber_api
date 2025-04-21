@@ -130,7 +130,6 @@ func (rc *ReviewController) AddReview(c *fiber.Ctx) error {
 	}
 
 	if err := rc.reviewModel.AddReview(review); err != nil {
-		rc.logger.Error("Error adding review", zap.Error(err))
 		return utils.JSONFail(c, fiber.StatusInternalServerError, "Failed to add review")
 	}
 
@@ -161,7 +160,6 @@ func (rc *ReviewController) DeleteReview(c *fiber.Ctx) error {
 	
 	// Call the model's DeleteReview method with the decoded name
 	if err := rc.reviewModel.DeleteReview(appName); err != nil {
-		rc.logger.Error(constants.ErrDeletingReviews, zap.Error(err))
 		if err.Error() == constants.AppNotFoundErrorMessage {
 			return utils.JSONFail(c, http.StatusBadRequest, constants.ErrAppNotFound) // Use http.StatusBadRequest
 		}
