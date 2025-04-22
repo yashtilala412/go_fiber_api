@@ -118,7 +118,6 @@ func (rc *ReviewController) AddReview(c *fiber.Ctx) error {
 	var review models.Review
 	body := c.Body()
 	if err := json.Unmarshal(body, &review); err != nil {
-		rc.logger.Error("Error parsing review data", zap.Error(err))
 		return utils.JSONFail(c, fiber.StatusBadRequest, "Invalid review data")
 	}
 
