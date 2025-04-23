@@ -124,7 +124,6 @@ func (rc *ReviewController) AddReview(c *fiber.Ctx) error {
 	// Validate the review struct
 	validate := validator.New() // Initialize validator here
 	if err := validate.Struct(review); err != nil {
-		rc.logger.Error("Validation error", zap.Error(err))
 		return utils.JSONFail(c, fiber.StatusBadRequest, utils.ValidatorErrorString(err))
 	}
 
