@@ -160,7 +160,6 @@ func (rc *ReviewController) DeleteReview(c *fiber.Ctx) error {
 	// Call the model's DeleteReview method with the decoded name
 	if err := rc.reviewModel.DeleteReview(appName); err != nil {
 		if err.Error() == constants.AppNotFoundErrorMessage {
-		        rc.logger.Error(constants.AppNotFoundErrorMessage, zap.Error(err))
 			return utils.JSONFail(c, http.StatusBadRequest, constants.ErrAppNotFound) // Use http.StatusBadRequest
 		}
 		return utils.JSONFail(c, http.StatusInternalServerError, constants.ErrDeleteReviews) // Use http.StatusInternalServerError
