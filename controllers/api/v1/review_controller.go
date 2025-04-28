@@ -153,6 +153,7 @@ func (rc *ReviewController) DeleteReview(c *fiber.Ctx) error {
 	if err != nil {
 		rc.logger.Error(constants.ErrDecodingAppName, zap.Error(err))
 		return utils.JSONFail(c, http.StatusBadRequest, constants.ErrInvalidAppNameFormat) // Use http.StatusBadRequest
+		
 	}
 
 	
